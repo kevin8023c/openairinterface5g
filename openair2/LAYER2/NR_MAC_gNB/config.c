@@ -1095,7 +1095,7 @@ void nr_mac_configure_sib1(gNB_MAC_INST *nrmac, const plmn_id_t *plmn, uint64_t 
   NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
   NR_BCCH_DL_SCH_Message_t *sib1 = get_SIB1_NR(scc, plmn, cellID, tac, &nrmac->radio_config);
   cc->sib1 = sib1;
-  cc->sib1_bcch_length = encode_SIB_NR(sib1, cc->sib1_bcch_pdu, sizeof(cc->sib1_bcch_pdu));
+  cc->sib1_bcch_length = encode_SIB_NR(sib1, cc->sib1_bcch_pdu, sizeof(cc->sib1_bcch_pdu)); // yuanhao: cc->sib1_bcch_pdu如果本身无法装下多个plmn，需要变成list或者新增list的属性
   AssertFatal(cc->sib1_bcch_length > 0, "could not encode SIB1\n");
 }
 

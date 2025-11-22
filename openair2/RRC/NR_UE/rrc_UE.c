@@ -475,6 +475,78 @@ static void get_sib19_schedinfo(NR_UE_RRC_SI_INFO *SI_info, NR_SI_SchedulingInfo
   }
 }
 
+// Helper function to select PLMN from SIB1 based on UICC IMSI
+static int nr_rrc_select_plmn_from_sib1(NR_UE_RRC_INST_t *rrc, NR_SIB1_t *sib1)
+{
+  // Get PLMN list from SIB1
+  NR_PLMN_IdentityInfoList_t *plmn_list = &sib1->cellAccessRelatedInfo.plmn_IdentityInfoList;
+  int num_plmns = plmn_list->list.count;
+  
+  LOG_I(NR_RRC, "SIB1 contains %d PLMN(s), selecting PLMN based on UICC...\n", num_plmns);
+  
+  // Get UE's IMSI from NAS/UICC
+  nr_ue_nas_t *nas = get_ue_nas_info(rrc->ue_id);
+  if (!nas || !nas->uicc) {
+    LOG_W(NR_RRC, "UICC not available, defaulting to first PLMN\n");
+    return 1; // Default to first PLMN
+  }
+  
+  // Extract MCC/MNC from IMSI
+  int imsi_mcc = (nas->uicc->imsiStr[0] - '0') * 100 +
+                 (nas->uicc->imsiStr[1] - '0') * 10 +
+                 (nas->uicc->imsiStr[2] - '0');
+  
+  int imsi_mnc;
+  if (nas->uicc->nmc_size == 2) {
+    imsi_mnc = (nas->uicc->imsiStr[3] - '0') * 10 +
+               (nas->uicc->imsiStr[4] - '0');
+  } else {
+    imsi_mnc = (nas->uicc->imsiStr[3] - '0') * 100 +
+               (nas->uicc->imsiStr[4] - '0') * 10 +
+               (nas->uicc->imsiStr[5] - '0');
+  }
+  
+  LOG_I(NR_RRC, "UICC HPLMN: MCC=%03d, MNC=%02d\n", imsi_mcc, imsi_mnc);
+  
+  // Search for matching PLMN in SIB1
+  for (int i = 0; i < num_plmns; i++) {
+    NR_PLMN_IdentityInfo_t *plmn_info = plmn_list->list.array[i];
+    
+    // Each PLMN_IdentityInfo can contain multiple PLMN identities
+    for (int j = 0; j < plmn_info->plmn_IdentityList.list.count; j++) {
+      NR_PLMN_Identity_t *plmn = plmn_info->plmn_IdentityList.list.array[j];
+      
+      // Extract MCC from SIB1
+      int sib1_mcc = 0;
+      if (plmn->mcc) {
+        sib1_mcc = (*plmn->mcc->list.array[0]) * 100 +
+                   (*plmn->mcc->list.array[1]) * 10 +
+                   (*plmn->mcc->list.array[2]);
+      }
+      
+      // Extract MNC from SIB1
+      int sib1_mnc = (*plmn->mnc.list.array[0]) * 10 +
+                     (*plmn->mnc.list.array[1]);
+      if (plmn->mnc.list.count == 3) {
+        sib1_mnc = sib1_mnc * 10 + (*plmn->mnc.list.array[2]);
+      }
+      
+      LOG_I(NR_RRC, "  PLMN[%d]: MCC=%03d, MNC=%02d\n", i+1, sib1_mcc, sib1_mnc);
+      
+      // Check if PLMN matches IMSI
+      if (sib1_mcc == imsi_mcc && sib1_mnc == imsi_mnc) {
+        LOG_I(NR_RRC, "✓ Selected PLMN[%d]: MCC=%03d, MNC=%02d (matches UICC HPLMN)\n", 
+              i+1, sib1_mcc, sib1_mnc);
+        return i + 1; // PLMN identity is 1-indexed
+      }
+    }
+  }
+  
+  // No matching PLMN found
+  LOG_E(NR_RRC, "✗ No matching PLMN found in SIB1 for IMSI %s, cannot attach!\n", nas->uicc->imsiStr);
+  return 0; // Return 0 to indicate failure
+}
+
 static void nr_rrc_process_sib1(NR_UE_RRC_INST_t *rrc, NR_UE_RRC_SI_INFO *SI_info, NR_SIB1_t *sib1)
 {
   if(g_log->log_component[NR_RRC].level >= OAILOG_DEBUG)
@@ -482,6 +554,15 @@ static void nr_rrc_process_sib1(NR_UE_RRC_INST_t *rrc, NR_UE_RRC_SI_INFO *SI_inf
   LOG_A(NR_RRC, "SIB1 decoded\n");
   nr_timer_start(&SI_info->sib1_timer);
   SI_info->sib1_validity = true;
+  
+  // MOCN Enhancement: Select PLMN based on UICC before triggering RA
+  rrc->selected_plmn_identity = nr_rrc_select_plmn_from_sib1(rrc, sib1);
+  
+  if (rrc->selected_plmn_identity == 0) {
+    LOG_E(NR_RRC, "PLMN selection failed, aborting connection\n");
+    return; // Do not trigger RA if no matching PLMN
+  }
+  
   if (rrc->nrRrcState == RRC_STATE_IDLE_NR) {
     rrc->ra_trigger = RRC_CONNECTION_SETUP;
   }
@@ -1261,7 +1342,8 @@ NR_UE_RRC_INST_t* nr_rrc_init_ue(char* uecap_file, int instance_id, int num_ant_
   NR_UE_RRC_INST_t *rrc = NR_UE_rrc_inst[instance_id];
   rrc->ue_id = instance_id;
   // fill UE-NR-Capability @ UE-CapabilityRAT-Container here.
-  rrc->selected_plmn_identity = 1;
+  // MOCN Enhancement: Will be set dynamically in nr_rrc_select_plmn_from_sib1()
+  rrc->selected_plmn_identity = 0; // 0 means not selected yet
   rrc->ra_trigger = RA_NOT_RUNNING;
   rrc->dl_bwp_id = 0;
   rrc->ul_bwp_id = 0;
@@ -2640,7 +2722,7 @@ void *rrc_nrue(void *notUsed)
   case NR_RRC_MAC_BCCH_DATA_IND:
     LOG_D(NR_RRC, "[UE %ld] Received %s: gNB %d\n", rrc->ue_id, ITTI_MSG_NAME(msg_p), NR_RRC_MAC_BCCH_DATA_IND(msg_p).gnb_index);
     NRRrcMacBcchDataInd *bcch = &NR_RRC_MAC_BCCH_DATA_IND(msg_p);
-    if (bcch->is_bch)
+    if (bcch->is_bch) // yuanhao: bcch - broadcast control channel. true -> MIB, false -> SIB1
       nr_rrc_ue_decode_NR_BCCH_BCH_Message(rrc, bcch->gnb_index, bcch->phycellid, bcch->ssb_arfcn, bcch->sdu, bcch->sdu_size);
     else
       nr_rrc_ue_decode_NR_BCCH_DL_SCH_Message(rrc,

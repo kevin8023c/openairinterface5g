@@ -512,7 +512,7 @@ int config_libconfig_getlist(configmodule_interface_t *cfg,
     i=asprintf(&listpath ,"%s",ParamList->listname);
   }
 
-  setting = config_lookup(&(libconfig_privdata.cfg), listpath);
+  setting = config_lookup(&(libconfig_privdata.cfg), listpath); // yuanhao: get config. listpath e.g. "gNBs.[0].plmn_list"
 
   if ( setting) {
     status = ParamList->numelt = config_setting_length(setting);

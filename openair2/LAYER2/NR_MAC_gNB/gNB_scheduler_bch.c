@@ -597,7 +597,7 @@ void schedule_nr_sib1(module_id_t module_idP,
       nfapi_nr_pdu_t *tx_req = &TX_req->pdu_list[ntx_req];
 
       // Data to be transmitted
-      memcpy(tx_req->TLVs[0].value.direct, cc->sib1_bcch_pdu, sched_pdsch.tb_size);
+      memcpy(tx_req->TLVs[0].value.direct, cc->sib1_bcch_pdu, sched_pdsch.tb_size); // yuanhao: broadcast SIB1
 
       tx_req->PDU_index  = pdu_index;
       tx_req->num_TLV = 1;

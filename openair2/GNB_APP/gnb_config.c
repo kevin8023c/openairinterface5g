@@ -1082,7 +1082,7 @@ static int read_du_cell_info(configmodule_interface_t *cfg,
   // PLMN
   plmn_id_t p[PLMN_LIST_MAX_SIZE] = {0};
   set_plmn_config(p, 0);
-  info->plmn = p[0];
+  info->plmn = p[0]; // yuanhao: need get the whole list. And this info->plmn also need to be changed to plmn_list
   info->nr_cellid = (uint64_t) * (GNBParamList.paramarray[0][GNB_NRCELLID_IDX].u64ptr);
 
   // SNSSAI
