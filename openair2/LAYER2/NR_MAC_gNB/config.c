@@ -1105,20 +1105,14 @@ void prepare_du_configuration_update(gNB_MAC_INST *mac,
   mac->mac_rrc.gnb_du_configuration_update(&update);
 }
 
-void nr_mac_configure_sib1(gNB_MAC_INST *nrmac, const plmn_id_t *plmn, uint64_t cellID, int tac, int num_plmn, const plmn_id_t *plmn_list)
+void nr_mac_configure_sib1(gNB_MAC_INST *nrmac, const plmn_id_t *plmn, uint64_t cellID, int tac, int num_plmn, const f1ap_served_plmn_info_t *served_plmn_list)
 {
   AssertFatal(IS_SA_MODE(get_softmodem_params()), "error: SIB1 only applicable for SA\n");
 
-  // LOG_I(NR_MAC, "[cyhtest] nr_mac_configure_sib1: num_plmn=%d\n", num_plmn);
-  // for (int i = 0; i < num_plmn; i++) {
-  //   LOG_I(NR_MAC, "[cyhtest] nr_mac_configure_sib1: plmn_list[%d] = %d.%d (mnc_digit_length=%d)\n", 
-  //         i, plmn_list[i].mcc, plmn_list[i].mnc, plmn_list[i].mnc_digit_length);
-  // }
-
   NR_COMMON_channels_t *cc = &nrmac->common_channels[0];
   NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
-  NR_BCCH_DL_SCH_Message_t *sib1 = get_SIB1_NR(scc, plmn, cellID, tac, &nrmac->radio_config, num_plmn, plmn_list);
-  
+  NR_BCCH_DL_SCH_Message_t *sib1 = get_SIB1_NR(scc, plmn, cellID, tac, &nrmac->radio_config, num_plmn, served_plmn_list);
+
   // Access SIB1 content through the message structure
   if (sib1 && sib1->message.choice.c1 && 
       sib1->message.choice.c1->present == NR_BCCH_DL_SCH_MessageType__c1_PR_systemInformationBlockType1) {

@@ -1094,24 +1094,43 @@ static int read_du_cell_info(configmodule_interface_t *cfg,
 
   // Copy PLMN list to info structure
   info->num_plmn = num_plmn;
+  LOG_I(GNB_APP, "[cyhtest] read_du_cell_info: Final info->num_plmn = %d\n", info->num_plmn);
   for (int i = 0; i < num_plmn; i++) {
-    info->plmn_list[i] = p[i];
-    LOG_I(GNB_APP, "[cyhtest] read_du_cell_info: copied to info->plmn_list[%d] = %d.%d\n", 
-          i, info->plmn_list[i].mcc, info->plmn_list[i].mnc);
+    // info->plmn_list[i] = p[i];
+    // LOG_I(GNB_APP, "[cyhtest] read_du_cell_info: copied to info->plmn_list[%d] = %d.%d\n", 
+    //       i, info->plmn_list[i].mcc, info->plmn_list[i].mnc);
+    
+    // Also populate served_plmn_list with PLMN and its slices
+    info->served_plmn_list[i].plmn = p[i];
+    info->served_plmn_list[i].num_nssai = set_snssai_config(
+        info->served_plmn_list[i].nssai,
+        MAX_NUM_SLICES,
+        0,  // gNB index (first gNB)
+        i   // PLMN index (current PLMN in loop)
+    );
+    
+    LOG_I(GNB_APP, "[cyhtest] read_du_cell_info: served_plmn_list[%d] PLMN=%d.%d has %d slices\n",
+          i, info->served_plmn_list[i].plmn.mcc, info->served_plmn_list[i].plmn.mnc,
+          info->served_plmn_list[i].num_nssai);
+    
+    for (int s = 0; s < info->served_plmn_list[i].num_nssai; s++) {
+      LOG_I(GNB_APP, "[cyhtest]   Slice[%d]: SST=%d, SD=0x%06x\n",
+            s, info->served_plmn_list[i].nssai[s].sst, info->served_plmn_list[i].nssai[s].sd);
+    }
   }
   
   // Print final info->plmn_list
-  LOG_I(GNB_APP, "[cyhtest] read_du_cell_info: Final info->num_plmn = %d\n", info->num_plmn);
-  for (int i = 0; i < info->num_plmn; i++) {
-    LOG_I(GNB_APP, "[cyhtest] read_du_cell_info: Final info->plmn_list[%d] = %d.%d (mnc_digit_length=%d)\n", 
-          i, info->plmn_list[i].mcc, info->plmn_list[i].mnc, info->plmn_list[i].mnc_digit_length);
-  }
+  // LOG_I(GNB_APP, "[cyhtest] read_du_cell_info: Final info->num_plmn = %d\n", info->num_plmn);
+  // for (int i = 0; i < info->num_plmn; i++) {
+  //   LOG_I(GNB_APP, "[cyhtest] read_du_cell_info: Final info->plmn_list[%d] = %d.%d (mnc_digit_length=%d)\n", 
+  //         i, info->plmn_list[i].mcc, info->plmn_list[i].mnc, info->plmn_list[i].mnc_digit_length);
+  // }
 
   info->plmn = p[0];
   info->nr_cellid = (uint64_t) * (GNBParamList.paramarray[0][GNB_NRCELLID_IDX].u64ptr);
 
-  // SNSSAI
-  info->num_ssi = set_snssai_config(info->nssai, MAX_NUM_SLICES, 0, 0);
+  // SNSSAI cyh checked
+  // info->num_ssi = set_snssai_config(info->nssai, MAX_NUM_SLICES, 0, 0);
 
   return 1;
 }
@@ -1709,7 +1728,7 @@ void RCconfig_nr_macrlc(configmodule_interface_t *cfg)
     cc->du_SIBs = fill_du_sibs(GNBParamList.paramarray[0]);
 
     if (IS_SA_MODE(get_softmodem_params()))
-      nr_mac_configure_sib1(RC.nrmac[0], &info.plmn, info.nr_cellid, *info.tac, info.num_plmn, info.plmn_list);
+      nr_mac_configure_sib1(RC.nrmac[0], &info.plmn, info.nr_cellid, *info.tac, info.num_plmn, info.served_plmn_list);
     
     // read F1 Setup information from config and generated MIB/SIB1
     // and store it at MAC for sending later

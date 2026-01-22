@@ -125,6 +125,14 @@ typedef struct f1ap_tdd_info_t {
   f1ap_transmission_bandwidth_t tbw;
 } f1ap_tdd_info_t;
 
+/* PLMN information including its slice list
+ * Per 38.473 §9.3.1.10, each PLMN can have its own set of slices */
+typedef struct f1ap_served_plmn_info_t {
+  plmn_id_t plmn;
+  uint16_t num_nssai;
+  nssai_t nssai[MAX_NUM_SLICES];
+} f1ap_served_plmn_info_t;
+
 typedef struct f1ap_served_cell_info_t {
   // NR CGI
   plmn_id_t plmn;
@@ -136,13 +144,9 @@ typedef struct f1ap_served_cell_info_t {
   /* Tracking area code */
   uint32_t *tac;
 
-  // Number of slice support items (max 16, could be increased to as much as 1024)
-  uint16_t num_ssi;
-  nssai_t nssai[MAX_NUM_SLICES];
-
   // PLMN list
   uint16_t num_plmn;
-  plmn_id_t plmn_list[F1AP_MAX_NB_PLMNS];
+  f1ap_served_plmn_info_t served_plmn_list[F1AP_MAX_NB_PLMNS];
 
   f1ap_mode_t mode;
   union {

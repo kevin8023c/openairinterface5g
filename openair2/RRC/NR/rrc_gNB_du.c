@@ -116,8 +116,8 @@ static bool rrc_gNB_plmn_matches(const gNB_RRC_INST *rrc, const f1ap_served_cell
   if (info->num_plmn > 0) {
     LOG_I(NR_RRC, "[cyhtest] info PLMN list: num_plmn=%d\n", info->num_plmn);
     for (int i = 0; i < info->num_plmn; i++) {
-      LOG_I(NR_RRC, "[cyhtest] info plmn_list[%d]: mcc=%d, mnc=%d, mnc_digit_length=%d\n", 
-            i, info->plmn_list[i].mcc, info->plmn_list[i].mnc, info->plmn_list[i].mnc_digit_length);
+      LOG_I(NR_RRC, "[cyhtest] info served_plmn_list[%d]: mcc=%d, mnc=%d, mnc_digit_length=%d\n", 
+            i, info->served_plmn_list[i].plmn.mcc, info->served_plmn_list[i].plmn.mnc, info->served_plmn_list[i].plmn.mnc_digit_length);
     }
   }
   

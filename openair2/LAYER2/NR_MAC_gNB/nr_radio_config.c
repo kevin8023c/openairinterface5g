@@ -2714,15 +2714,9 @@ NR_BCCH_DL_SCH_Message_t *get_SIB1_NR(const NR_ServingCellConfigCommon_t *scc,
                                       int tac,
                                       const nr_mac_config_t *mac_config,
                                       int num_plmn,
-                                      const plmn_id_t *plmn_list)
+                                      const f1ap_served_plmn_info_t *served_plmn_list)
 {
   AssertFatal(cellID < (1l << 36), "cellID must fit within 36 bits, but is %lu\n", cellID);
-
-  // LOG_I(NR_RRC, "[cyhtest] get_SIB1_NR: num_plmn=%d\n", num_plmn);
-  // for (int i = 0; i < num_plmn; i++) {
-  //   LOG_I(NR_RRC, "[cyhtest] get_SIB1_NR: plmn_list[%d] = %d.%d (mnc_digit_length=%d)\n", 
-  //         i, plmn_list[i].mcc, plmn_list[i].mnc, plmn_list[i].mnc_digit_length);
-  // }
 
   NR_BCCH_DL_SCH_Message_t *sib1_message = CALLOC(1,sizeof(NR_BCCH_DL_SCH_Message_t));
   AssertFatal(sib1_message != NULL, "out of memory\n");
@@ -2750,16 +2744,16 @@ NR_BCCH_DL_SCH_Message_t *get_SIB1_NR(const NR_ServingCellConfigCommon_t *scc,
   for (int i = 0; i < num_plmn; ++i) {
     asn1cSequenceAdd(nr_plmn_info->plmn_IdentityList.list, struct NR_PLMN_Identity, nr_plmn);
     asn1cCalloc(nr_plmn->mcc, mcc);
-    int confMcc = plmn_list[i].mcc;
-    LOG_I(NR_RRC, "[cyhtest] get_SIB1_NR: Adding PLMN[%d]: %d.%d\n", i, plmn_list[i].mcc, plmn_list[i].mnc);
+    int confMcc = served_plmn_list[i].plmn.mcc;
+    LOG_I(NR_RRC, "[cyhtest] get_SIB1_NR: Adding PLMN[%d]: %d.%d\n", i, served_plmn_list[i].plmn.mcc, served_plmn_list[i].plmn.mnc);
     asn1cSequenceAdd(mcc->list, NR_MCC_MNC_Digit_t, mcc0);
     *mcc0 = (confMcc / 100) % 10;
     asn1cSequenceAdd(mcc->list, NR_MCC_MNC_Digit_t, mcc1);
     *mcc1 = (confMcc / 10) % 10;
     asn1cSequenceAdd(mcc->list, NR_MCC_MNC_Digit_t, mcc2);
     *mcc2 = confMcc % 10;
-    int mnc = plmn_list[i].mnc;
-    if (plmn_list[i].mnc_digit_length == 3) {
+    int mnc = served_plmn_list[i].plmn.mnc;
+    if (served_plmn_list[i].plmn.mnc_digit_length == 3) {
       asn1cSequenceAdd(nr_plmn->mnc.list, NR_MCC_MNC_Digit_t, mnc0);
       *mnc0 = (mnc / 100) % 10;
     }
@@ -2768,34 +2762,6 @@ NR_BCCH_DL_SCH_Message_t *get_SIB1_NR(const NR_ServingCellConfigCommon_t *scc,
     asn1cSequenceAdd(nr_plmn->mnc.list, NR_MCC_MNC_Digit_t, mnc2);
     *mnc2 = (mnc) % 10;
   }
-
-  // Print PLMN Identity List after assignment
-  // LOG_I(NR_RRC, "[cyhtest] get_SIB1_NR after assignment: plmn_IdentityInfoList has %d PLMN(s)\n", 
-  //       sib1->cellAccessRelatedInfo.plmn_IdentityInfoList.list.count);
-  // for (int i = 0; i < sib1->cellAccessRelatedInfo.plmn_IdentityInfoList.list.count; i++) {
-  //   NR_PLMN_IdentityInfo_t *plmn_info = sib1->cellAccessRelatedInfo.plmn_IdentityInfoList.list.array[i];
-  //   if (plmn_info && plmn_info->plmn_IdentityList.list.array && plmn_info->plmn_IdentityList.list.count > 0) {
-  //     for (int j = 0; j < plmn_info->plmn_IdentityList.list.count; j++) {
-  //       NR_PLMN_Identity_t *plmn_id = plmn_info->plmn_IdentityList.list.array[j];
-  //       if (plmn_id && plmn_id->mcc && plmn_id->mcc->list.count == 3) {
-  //         int mcc = (*plmn_id->mcc->list.array[0]) * 100 + 
-  //                   (*plmn_id->mcc->list.array[1]) * 10 + 
-  //                   (*plmn_id->mcc->list.array[2]);
-  //         int mnc = 0;
-  //         int mnc_len = plmn_id->mnc.list.count;
-  //         if (mnc_len == 2) {
-  //           mnc = (*plmn_id->mnc.list.array[0]) * 10 + (*plmn_id->mnc.list.array[1]);
-  //         } else if (mnc_len == 3) {
-  //           mnc = (*plmn_id->mnc.list.array[0]) * 100 + 
-  //                 (*plmn_id->mnc.list.array[1]) * 10 + 
-  //                 (*plmn_id->mnc.list.array[2]);
-  //         }
-  //         LOG_I(NR_RRC, "[cyhtest] get_SIB1_NR after assignment:   PLMN_Info[%d] PLMN[%d]: %d.%d (mnc_len=%d)\n", 
-  //               i, j, mcc, mnc, mnc_len);
-  //       }
-  //     }
-  //   }
-  // }
 
   NR_CELL_ID_TO_BIT_STRING(cellID, &nr_plmn_info->cellIdentity);
   nr_plmn_info->cellReservedForOperatorUse = NR_PLMN_IdentityInfo__cellReservedForOperatorUse_notReserved;
